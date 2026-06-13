@@ -1,0 +1,19 @@
+services:
+  swan:
+    build: 
+      context: .
+    volumes:
+    - .:/app 
+    - ./weights:/weights
+    - ./comfyui_models:/comfyui_models
+    environment:
+      - PYTHONPATH=/app/swan
+    deploy:
+      resources:
+          reservations:
+              devices:
+                  - driver: nvidia
+                    count: all
+                    capabilities: [all]
+
+                

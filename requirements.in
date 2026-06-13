@@ -1,0 +1,47 @@
+# Newer pytorch versions may work, but were not tested.
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.11.0+cu128
+torchvision==0.26.0+cu128
+torchaudio==2.11.0
+transformers==5.5.4
+kernels==0.13.0
+
+# we use the exact git commit hashes to ensure reproducibility. 
+git+https://github.com/luca-medeiros/lang-segment-anything.git@918043ed4666eea04da88aa179eb8d27ef4b1a1d
+git+https://github.com/facebookresearch/co-tracker.git@82e02e8029753ad4ef13cf06be7f4fc5facdda4d
+git+https://github.com/utiasDSL/axswarm.git@2ce7540d07983d152c3df7a0d77166de18dbd2d6
+
+imageio[ffmpeg]
+matplotlib
+flow_vis
+tqdm
+requests
+tensorboard
+plotly
+orjson
+IProgress
+jupyter
+seaborn
+statsmodels
+scipy
+pandas < 3.0.0 # deeplabcut is not compatible with pandas 3.0.0
+ruff
+optuna
+optuna-dashboard
+opencv-python
+jax==0.6.2 # Later versions of JAX don't work with AxSwarm.
+nbformat
+anywidget
+dash
+pyqt6
+crazyflow[gpu]
+bitsandbytes
+accelerate
+kernels
+comfy-cli
+packaging 
+ninja
+wheel
+scikit-learn
+scikit-image
+prettytable
