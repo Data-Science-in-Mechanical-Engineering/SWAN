@@ -804,4 +804,15 @@ def track_video(video, segmentation_prompt, output_dir, tracking_config: Trackin
         path=os.path.join(output_dir, "tracking_visualization.mp4")
     )
 
+    swan.utils.create_custom_tracking_video(
+        video=None,
+        video_resolution=(video.shape[2], video.shape[1]),
+        trajectories=trajectories,
+        visibilities=visibilities,
+        colors=colors,
+        path=os.path.join(output_dir, "tracking_points_only.mp4"),
+        background_color=(0, 0, 0),
+        trace_length=0,
+    )
+
     return os.path.join(output_dir, "tracking_visualization.mp4")

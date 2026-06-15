@@ -45,3 +45,4 @@ wheel
 scikit-learn
 scikit-image
 prettytable
+paramiko>=3.0.0

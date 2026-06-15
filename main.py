@@ -23,12 +23,15 @@ from visualize_assignment import make_animation, export_frames
 from animate_tracking import build_animation, save_frames
 
 
-def prompt_continue(stage_name: str, output_path: str) -> bool:
+def prompt_continue(stage_name: str, output_path: str, no_prompt: bool = False) -> bool:
     """Display result link and ask user if they want to continue."""
     print(f"\n{'='*60}")
     print(f"Stage '{stage_name}' complete!")
     print(f"Results available at: {output_path}")
     print(f"{'='*60}")
+    
+    if no_prompt:
+        return True
     
     while True:
         response = input("Continue to next stage? [y/n]: ").strip().lower()
@@ -198,10 +201,15 @@ async def main_async():
     parser.add_argument("--video-path", type=str, help="Path to existing video (for restart after video generation)")
     parser.add_argument("--prompt-path", type=str, help="Path to existing prompt.json (for restart after video generation)")
     parser.add_argument("--tracking-dir", type=str, help="Path to tracking output directory (for restart after tracking)")
+    parser.add_argument("--no-prompt", action="store_true", help="Run without interactive prompts (for UI/automation)")
+    parser.add_argument("--output-dir", type=str, default=None, help="Output directory override (for UI/automation)")
     
     args = parser.parse_args()
     
-    output_base_dir = f"/app/out/{args.video_name}_{args.n_drones}_drones"
+    if args.output_dir:
+        output_base_dir = args.output_dir
+    else:
+        output_base_dir = f"/app/out/{args.video_name}_{args.n_drones}_drones"
     os.makedirs(output_base_dir, exist_ok=True)
     
     video_gen_dir = os.path.join(output_base_dir, "video_gen")
@@ -227,7 +235,7 @@ async def main_async():
             "image_path": image_path
         })
         
-        if not prompt_continue("video_generation", f"file://{video_path}"):
+        if not prompt_continue("video_generation", f"file://{video_path}", no_prompt=args.no_prompt):
             return
     else:
         # Load from existing results or use provided paths
@@ -257,7 +265,7 @@ async def main_async():
             "tracking_dir": tracking_output_dir
         })
         
-        if not prompt_continue("tracking", f"file://{visualization_path}"):
+        if not prompt_continue("tracking", f"file://{visualization_path}", no_prompt=args.no_prompt):
             return
     else:
         tracking_result = load_stage_result(output_base_dir, "tracking")
@@ -281,7 +289,7 @@ async def main_async():
             "trajectory_dir": trajectory_output_dir
         })
         
-        if not prompt_continue("trajectory_generation", f"file://{trajectory_output_dir}"):
+        if not prompt_continue("trajectory_generation", f"file://{trajectory_output_dir}", no_prompt=args.no_prompt):
             return
     else:
         traj_result = load_stage_result(output_base_dir, "trajectory")
@@ -300,7 +308,7 @@ async def main_async():
             trajectory_generation_config=trajectory_generation_config
         )
         
-        if not prompt_continue("simulation", f"file://{simulation_output_dir}"):
+        if not prompt_continue("simulation", f"file://{simulation_output_dir}", no_prompt=args.no_prompt):
             return
     
     # Stage 6: Visualization
