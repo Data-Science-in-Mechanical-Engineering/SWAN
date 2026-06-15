@@ -2,6 +2,8 @@ services:
   swan:
     build: 
       context: .
+    ports:
+      - "8888:8888"
     volumes:
     - .:/app 
     - ./weights:/weights
@@ -15,5 +17,3 @@ services:
                   - driver: nvidia
                     count: all
                     capabilities: [all]
-
-                

@@ -1,0 +1,71 @@
+# Project Name
+
+The SWAN project is a demo that can create drone shows for thousands of drones from text prompts.
+It has the following steps:
+1. Video generation with an video generating model (e.g., Wan 2.2)
+2. Segmentation of the main object.
+3. Tracking of points inside the main objects.
+4. Assignments of these points to drones by solving an optimal flow problem.
+5. Assembling of the final trajectories.
+6. Safety filter via AXSwarm
+7. Visualization of results (top-down assignment and tracking overlay videos)
+
+## Code Style
+
+- Use standard Python conventions (PEP 8)
+
+## Architecture
+
+The SWAN pipeline is orchestrated from `main.ipynb` and implemented as a set of modular stages under the `swan/` package.
+
+### Runtime environment
+
+- The project is designed to run inside the Docker image defined by `Dockerfile`, which is based on `nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04` and uses a UV-managed Python 3.12 virtual environment at `/opt/venv`.
+- `docker-compose.yaml` mounts the repository root into `/app`, mounts `./weights` and `./comfyui_models` for model storage, and passes through all NVIDIA GPUs.
+- `PYTHONPATH` is set to `/app/swan` so the package imports work without installation.
+
+### Pipeline stages
+
+1. **Video generation** (`swan/video_generation.py`)
+    - Expands the user prompt with a local LLM (`PromptExpander`) into cinematic components and a segmentation prompt.
+    - Generates a start frame and a follow-up video via ComfyUI using the `ComfyUIServer` / `ComfyUIClient` wrappers around the ComfyUI HTTP API.
+    - Workflow templates are filled using presets defined in `WorkflowTemplate` and executed asynchronously.
+
+2. **Segmentation** (integrated in tracking stage)
+    - Segments the main object per frame using LangSAM + SAM 2.1 and caches results.
+
+3. **Tracking** (`swan/tracking.py`)
+    - Samples initial drone positions via Centroidal Voronoi Tessellation (K-Means) inside the segmentation mask.
+    - Tracks points through the video with CoTracker3.
+    - Applies a force field to keep points inside the mask, avoids overcrowding, removes outliers, and heals lost tracks.
+    - Outputs per-frame 2D trajectories, visibility flags, and segment-start flags.
+
+4. **Trajectory generation** (`swan/trajectory_generation.py`)
+    - Loads image-space tracking results, removes short segments, and reorders drones.
+    - Densifies and smooths trajectories with smoothing splines, then rescales image-space units to real-world meters so inter-drone distances satisfy a safety margin.
+    - Splits non-continuous logical drone segments and solves a min-cost-flow problem (`networkx`) to assign segments to the minimum number of physical drones, adding extra drones where kinematically necessary.
+    - Computes 3D takeoff / landing pads on a ground grid and generates quintic takeoff, landing, and transition trajectories.
+    - Routes transitions collision-free with X-axis avoidance bumps and finalizes quintic B-splines at the requested output frequency.
+    - Writes `initial_trajectories.npz` with splines, actions, timestamps, lead-in / lead-out frames, and the image-to-world transformation matrix.
+
+5. **Simulation / safety filter** (`swan/simulation.py`)
+    - Loads the generated splines and parameters, then runs the AXSwarm MPC solver inside a `crazyflow` simulation.
+    - Uses a custom `CollisionlessSim` subclass to disable contact physics and avoid excessive memory use for large swarms.
+    - Checks the resulting dense trajectories for collisions.
+    - Saves `simulation_results.npz` with trajectories_simulated, t_frames, n_leadin_frames, n_leadout_frames.
+
+6. **Visualization** (`main.py` + `visualize_assignment.py`, `visualize_tracking.py`, `animate_tracking.py`)
+    - Generates a top-down (x, y) animation (`assignment.mp4`) showing drone trajectories with trails.
+    - Exports frame-by-frame CSV and PNG files for analysis.
+    - Generates a tracking overlay video (`tracking_overlay.mp4`) with drone positions overlaid on the original video.
+    - Generates a tracking animation (`tracking_animation.mp4`) from raw image-space trajectories.
+
+### Utilities
+
+- `swan/utils.py` provides helpers for rendering tracking visualizations and assigning per-drone colors.
+
+### Models and assets
+
+- Model weights are downloaded separately with `download_weights.py`. It supports downloading only the core vision models (CoTracker3, SAM 2.1, Grounding DINO) or everything including the ComfyUI video models.
+- ComfyUI is included as a Git submodule and mounted at `/app/comfyui`.
+- Static data such as prompts, workflow JSONs, and AXSwarm settings live under `static_data/`.

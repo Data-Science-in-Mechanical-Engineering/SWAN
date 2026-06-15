@@ -273,6 +273,14 @@ def simulate_with_safety_filter(output_simulation_dir: str, input_trajectory_dir
         t_waypoint_eval=t_waypoint_eval
     )
 
+    # Save simulation_results.npz for visualization scripts
+    np.savez(f"{output_simulation_dir}/simulation_results.npz",
+        t_frames=trajectory_data['t_frames'],
+        n_leadin_frames=trajectory_data['n_leadin_frames'],
+        n_leadout_frames=trajectory_data['n_leadout_frames'],
+        trajectories_simulated=simulated_trajectories,
+    )
+
 def create_video_colors(t_frames, simulated_trajectories, video, transformation_matrix, n_leadin_frames, n_leadout_frames, actions_final, keep_video_colors, action_to_color_dict=None):
     """
     t_frames_final, n_leadin_frames, n_leadout_frames and actions_final all use the same time steps

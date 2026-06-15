@@ -27,6 +27,9 @@ MODELS_TO_DOWNLOAD = {
         ("Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors", COMFYUI_MODELS_DIR / "diffusion_models", False),
         ("Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "split_files/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors", COMFYUI_MODELS_DIR / "loras", False),
         ("Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "split_files/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors", COMFYUI_MODELS_DIR / "loras", False),
+    ],
+    "Qwen3.5-9B": [
+        ("Qwen/Qwen3.5-9B", "None", WEIGHTS_DIR / "Qwen3.5-9B", True),
     ]
 }
 
