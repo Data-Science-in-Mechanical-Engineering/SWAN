@@ -4,6 +4,7 @@ services:
       context: .
     ports:
       - "8888:8888"
+      - "7860:7860"
     volumes:
     - .:/app 
     - ./weights:/weights
