@@ -795,7 +795,7 @@ def track_video(video, segmentation_prompt, output_dir, tracking_config: Trackin
     np.savez_compressed(os.path.join(output_dir, "segment_starts.npz"), segment_starts=segment_starts)
     print(f"Saving tajectory data to {output_dir}")
 
-    colors = swan.utils.create_colors_for_tracking_video(trajectories, visibilities=visibilities, type='constant')
+    colors = swan.utils.create_colors_for_tracking_video(trajectories, visibilities=visibilities, color_type='constant')
     swan.utils.create_custom_tracking_video(
         video=video,
         trajectories=trajectories,
@@ -806,7 +806,7 @@ def track_video(video, segmentation_prompt, output_dir, tracking_config: Trackin
 
     swan.utils.create_custom_tracking_video(
         video=None,
-        video_resolution=(video.shape[2], video.shape[1]),
+        video_resolution=(video.shape[1], video.shape[2]),
         trajectories=trajectories,
         visibilities=visibilities,
         colors=colors,

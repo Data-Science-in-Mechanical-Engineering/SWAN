@@ -16,7 +16,7 @@ It has the following steps:
 
 ## Architecture
 
-The SWAN pipeline is orchestrated from `main.ipynb` and implemented as a set of modular stages under the `swan/` package.
+The SWAN pipeline is orchestrated from `main.ipynb` and `main.py` (CLI/local UI entry point) and implemented as a set of modular stages under the `swan/` package.
 
 ### Runtime environment
 
@@ -54,11 +54,15 @@ The SWAN pipeline is orchestrated from `main.ipynb` and implemented as a set of 
     - Checks the resulting dense trajectories for collisions.
     - Saves `simulation_results.npz` with trajectories_simulated, t_frames, n_leadin_frames, n_leadout_frames.
 
-6. **Visualization** (`main.py` + `visualize_assignment.py`, `visualize_tracking.py`, `animate_tracking.py`)
-    - Generates a top-down (x, y) animation (`assignment.mp4`) showing drone trajectories with trails.
-    - Exports frame-by-frame CSV and PNG files for analysis.
-    - Generates a tracking overlay video (`tracking_overlay.mp4`) with drone positions overlaid on the original video.
-    - Generates a tracking animation (`tracking_animation.mp4`) from raw image-space trajectories.
+6. **Visualization**
+    - Visualization helpers are consolidated in `swan/utils.py`:
+      - `make_animation()` / `export_frames()` – top-down (x, y) assignment animation and per-frame exports.
+      - `write_tracking_video()` – overlay simulated drones onto the original video.
+      - `build_animation()` / `save_frames()` – raw image-space tracking animation.
+    - `swan/pipeline.py` wires these helpers together in `run_visualization()`.
+    - `main.py` exposes the local Gradio UI; the SSH-based remote UI lives in `ui/ui.py`.
+    - The root scripts `visualize_assignment.py`, `visualize_tracking.py`, and `animate_tracking.py` remain as thin CLI wrappers around `swan/utils.py`.
+    - Generates `assignment.mp4`, per-frame CSV/PNG exports, `tracking_overlay.mp4`, and `tracking_animation.mp4`.
 
 ### Utilities
 
