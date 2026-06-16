@@ -815,4 +815,15 @@ def track_video(video, segmentation_prompt, output_dir, tracking_config: Trackin
         trace_length=0,
     )
 
-    return os.path.join(output_dir, "tracking_visualization.mp4")
+    # Render segmentation masks as a transparent overlay on the original video
+    masks = np.stack([get_combined_mask(segmentation_results, i) for i in range(video.shape[0])])
+    segmentation_overlay_path = os.path.join(output_dir, "segmentation_overlay.mp4")
+    swan.utils.write_mask_overlay_video(
+        video=video,
+        masks=masks,
+        output_path=segmentation_overlay_path,
+        mask_color=(0, 0, 255),
+        alpha=0.5,
+    )
+
+    return os.path.join(output_dir, "tracking_visualization.mp4"), segmentation_overlay_path

@@ -504,6 +504,44 @@ def write_tracking_video(simulation_path, trajectory_path, video_path, output_pa
     print("Done.")
 
 
+def write_mask_overlay_video(video, masks, output_path, mask_color=(0, 0, 255), alpha=0.5):
+    """
+    Render the original video with a transparent overlay of per-frame masks.
+
+    Parameters
+    ----------
+    video : (T, H, W, 3) uint8 numpy array
+        Input RGB video frames.
+    masks : (T, H, W) bool numpy array or list of length T of (H, W) bool arrays
+        Per-frame segmentation masks.
+    output_path : str
+        Destination .mp4 path.
+    mask_color : tuple of int
+        RGB color used to tint the mask (default red).
+    alpha : float
+        Mask overlay opacity in [0, 1].
+    """
+    masks = np.asanyarray(masks)
+    if masks.ndim == 3 and masks.shape[0] == 0:
+        masks = np.zeros((video.shape[0], video.shape[1], video.shape[2]), dtype=bool)
+    elif masks.ndim == 3 and masks.shape[0] != video.shape[0]:
+        raise ValueError(
+            f"Number of masks ({masks.shape[0]}) must match video frames ({video.shape[0]})."
+        )
+
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    writer = imageio.get_writer(output_path, fps=25)
+    for frame_idx, frame in enumerate(video):
+        mask = masks[frame_idx] if masks.ndim == 3 else np.asanyarray(masks[frame_idx])
+        overlay = frame.copy().astype(np.float32)
+        color_layer = np.full_like(overlay, mask_color, dtype=np.float32)
+        blended = overlay * (1.0 - alpha * mask[..., None]) + alpha * color_layer * mask[..., None]
+        blended = np.clip(blended, 0, 255).astype(np.uint8)
+        writer.append_data(blended)
+    writer.close()
+    print(f"Segmentation mask overlay saved to {output_path}")
+
+
 def load_npz(path, key):
     data = np.load(path, allow_pickle=False)
     if key not in data:

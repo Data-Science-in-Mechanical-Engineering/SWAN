@@ -26,6 +26,7 @@ from swan.utils import (
     load_and_prepare,
     make_animation,
     save_frames,
+    write_mask_overlay_video,
     write_tracking_video,
 )
 
@@ -104,24 +105,57 @@ async def run_video_generation(config: VideoGenerationConfig, user_prompt: str, 
     return image_output_path, video_output_path, prompt_output_path
 
 
-def run_tracking(video_path: str, prompt_path: str, output_base_dir: str, n_drones: int) -> tuple[str, str]:
-    """Run tracking stage and return (tracking_visualization_path, tracking_points_only_path)."""
+def run_segmentation(video_path: str, prompt_path: str, output_base_dir: str) -> str:
+    """Run segmentation and return the path to the transparent-red overlay video."""
+    from swan.tracking import SegmentationConfig, grounded_sam2_segment_video, get_combined_mask
+
     tracking_output_dir = os.path.join(output_base_dir, "tracking")
     os.makedirs(tracking_output_dir, exist_ok=True)
 
     video = iio.imread(video_path)
     segmentation_prompt = json.load(open(prompt_path))["segmentation_prompt"]
 
-    track_video(
+    cache_file = os.path.join(tracking_output_dir, "segmentation_results.npz")
+    segmentation_results = grounded_sam2_segment_video(
+        video=video,
+        segmentation_prompt=segmentation_prompt,
+        segmentation_config=SegmentationConfig(),
+        cache_file=cache_file,
+    )
+
+    masks = np.stack([get_combined_mask(segmentation_results, i) for i in range(video.shape[0])])
+    overlay_path = os.path.join(tracking_output_dir, "segmentation_overlay.mp4")
+    write_mask_overlay_video(
+        video=video,
+        masks=masks,
+        output_path=overlay_path,
+        mask_color=(0, 0, 255),
+        alpha=0.5,
+    )
+
+    return overlay_path
+
+
+def run_tracking(video_path: str, prompt_path: str, output_base_dir: str, n_drones: int) -> tuple[str, str, str]:
+    """Run tracking stage and return (tracking_visualization_path, tracking_points_only_path, segmentation_overlay_path)."""
+    tracking_output_dir = os.path.join(output_base_dir, "tracking")
+    os.makedirs(tracking_output_dir, exist_ok=True)
+
+    video = iio.imread(video_path)
+    segmentation_prompt = json.load(open(prompt_path))["segmentation_prompt"]
+
+    tracking_viz_path, segmentation_overlay_path = track_video(
         tracking_config=TrackingConfig(n_simultaneous_tracking_points=n_drones),
         segmentation_prompt=segmentation_prompt,
         video=video,
         output_dir=tracking_output_dir,
     )
+    tracking_points_path = os.path.join(tracking_output_dir, "tracking_points_only.mp4")
 
     return (
-        os.path.join(tracking_output_dir, "tracking_visualization.mp4"),
-        os.path.join(tracking_output_dir, "tracking_points_only.mp4")
+        tracking_viz_path,
+        tracking_points_path,
+        segmentation_overlay_path,
     )
 
 
@@ -245,7 +279,7 @@ async def run_pipeline_async(state: PipelineState) -> PipelineState:
     state.current_stage = 2
     state.logs += "\nRunning Stage 2: Tracking...\n"
 
-    tracking_viz_path, tracking_points_path = run_tracking(
+    tracking_viz_path, tracking_points_path, segmentation_overlay_path = run_tracking(
         video_path=video_path,
         prompt_path=prompt_path,
         output_base_dir=output_base_dir,
@@ -254,10 +288,15 @@ async def run_pipeline_async(state: PipelineState) -> PipelineState:
     save_stage_result(output_base_dir, "tracking", {
         "visualization_path": tracking_viz_path,
         "points_only_path": tracking_points_path,
+        "segmentation_overlay_path": segmentation_overlay_path,
         "tracking_dir": tracking_output_dir
     })
     state.stage_outputs["tracking_video"] = tracking_viz_path
     state.stage_outputs["tracking_points"] = tracking_points_path
+    state.stage_outputs["segmentation_overlay"] = segmentation_overlay_path
+
+    state.stage_outputs["segmentation_overlay"] = segmentation_overlay_path
+
 
     # Stage 3: Trajectory Generation
     state.current_stage = 3
@@ -374,7 +413,7 @@ async def main_async():
     # Stage 2 & 3: Tracking (includes segmentation)
     if start_stage is None or start_stage in ("segmentation", "tracking"):
         print("\nRunning Stage 2 & 3: Segmentation and Tracking...")
-        tracking_viz_path, tracking_points_path = run_tracking(
+        tracking_viz_path, tracking_points_path, segmentation_overlay_path = run_tracking(
             video_path=video_path,
             prompt_path=prompt_path,
             output_base_dir=output_base_dir,
@@ -383,6 +422,7 @@ async def main_async():
         save_stage_result(output_base_dir, "tracking", {
             "visualization_path": tracking_viz_path,
             "points_only_path": tracking_points_path,
+            "segmentation_overlay_path": segmentation_overlay_path,
             "tracking_dir": tracking_output_dir
         })
 
@@ -392,8 +432,10 @@ async def main_async():
         tracking_result = load_stage_result(output_base_dir, "tracking")
         if tracking_result:
             tracking_output_dir = tracking_result.get("tracking_dir", tracking_output_dir)
+            segmentation_overlay_path = tracking_result.get("segmentation_overlay_path")
         elif args.tracking_dir:
             tracking_output_dir = args.tracking_dir
+            segmentation_overlay_path = None
         else:
             print("Error: No tracking results found and no --tracking-dir provided.")
             return
@@ -452,6 +494,7 @@ async def main_async():
         print(f"Assignment video: file://{assignment_video_path}")
         print(f"Tracking overlay video: file://{tracking_video_path}")
         print(f"Tracking animation: file://{tracking_anim_path}")
+        print(f"Segmentation overlay video: file://{segmentation_overlay_path}")
         print(f"Pipeline state saved to: {output_base_dir}/pipeline_results.json")
         print("Use --start-stage to resume from any stage.")
         print(f"{'='*60}")
