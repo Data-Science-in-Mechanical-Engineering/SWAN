@@ -1,14 +1,13 @@
 # Project Name
 
 The SWAN project is a demo that can create drone shows for thousands of drones from text prompts.
-It has the following steps:
-1. Video generation with an video generating model (e.g., Wan 2.2)
-2. Segmentation of the main object.
-3. Tracking of points inside the main objects.
-4. Assignments of these points to drones by solving an optimal flow problem.
-5. Assembling of the final trajectories.
-6. Safety filter via AXSwarm
-7. Visualization of results (top-down assignment and tracking overlay videos)
+It has the following pipeline stages:
+1. Video generation with a video generating model (e.g., Wan 2.2)
+2. Segmentation of the main object (integrated in tracking stage for UI, separate for CLI)
+3. Tracking of points inside the main object.
+4. Trajectory generation (assignments via optimal flow + assembling with takeoff/landing)
+5. Safety filter via AXSwarm
+6. Visualization of results (top-down assignment and tracking overlay videos)
 
 ## Code Style
 
@@ -16,7 +15,7 @@ It has the following steps:
 
 ## Architecture
 
-The SWAN pipeline is orchestrated from `main.ipynb` and `main.py` (CLI/local UI entry point) and implemented as a set of modular stages under the `swan/` package.
+The SWAN pipeline is orchestrated from `main.py` (CLI/local UI entry point) and implemented as a set of modular stages under the `swan/` package.
 
 ### Runtime environment
 
@@ -31,8 +30,9 @@ The SWAN pipeline is orchestrated from `main.ipynb` and `main.py` (CLI/local UI 
     - Generates a start frame and a follow-up video via ComfyUI using the `ComfyUIServer` / `ComfyUIClient` wrappers around the ComfyUI HTTP API.
     - Workflow templates are filled using presets defined in `WorkflowTemplate` and executed asynchronously.
 
-2. **Segmentation** (integrated in tracking stage)
+2. **Segmentation** (`swan/tracking.py`, integrated in tracking stage)
     - Segments the main object per frame using LangSAM + SAM 2.1 and caches results.
+    - CLI mode runs segmentation separately; UI mode integrates it with tracking.
 
 3. **Tracking** (`swan/tracking.py`)
     - Samples initial drone positions via Centroidal Voronoi Tessellation (K-Means) inside the segmentation mask.
@@ -56,17 +56,20 @@ The SWAN pipeline is orchestrated from `main.ipynb` and `main.py` (CLI/local UI 
 
 6. **Visualization**
     - Visualization helpers are consolidated in `swan/utils.py`:
-      - `make_animation()` / `export_frames()` – top-down (x, y) assignment animation and per-frame exports.
-      - `write_tracking_video()` – overlay simulated drones onto the original video.
-      - `build_animation()` / `save_frames()` – raw image-space tracking animation.
+        - `make_animation()` / `export_frames()` – top-down (x, y) assignment animation and per-frame exports.
+        - `write_tracking_video()` – overlay simulated drones onto the original video.
+        - `build_animation()` / `save_frames()` – raw image-space tracking animation.
+        - `write_mask_overlay_video()` – renders segmentation masks as transparent video overlay.
     - `swan/pipeline.py` wires these helpers together in `run_visualization()`.
     - `main.py` exposes the local Gradio UI; the SSH-based remote UI lives in `ui/ui.py`.
-    - The root scripts `visualize_assignment.py`, `visualize_tracking.py`, and `animate_tracking.py` remain as thin CLI wrappers around `swan/utils.py`.
     - Generates `assignment.mp4`, per-frame CSV/PNG exports, `tracking_overlay.mp4`, and `tracking_animation.mp4`.
 
 ### Utilities
 
 - `swan/utils.py` provides helpers for rendering tracking visualizations and assigning per-drone colors.
+
+### UI
+- `ui/ui.py` provides the Gradio web interface with interactive stage-by-stage execution and result previews.
 
 ### Models and assets
 
