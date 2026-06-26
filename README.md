@@ -36,5 +36,11 @@ The system should have an Nvidia GPU, with at least 16 GB VRAM. Furthermore, we 
 For a detailed explanation of the codebase, please refer to [AGENTS.md](./AGENTS.md).
 
 ## Citation
-
-Will follow soon.
+```bibtex
+@misc{reinhold2026generativeaisafephotorealistic,
+      title={Generative AI for Safe and Photorealistic Drone Light Shows}, 
+      author={Pascal Reinhold and Alexander Gräfe and Sebastian Trimpe},
+      year={2026},
+      url={https://arxiv.org/abs/2606.25458}, 
+}
+```
